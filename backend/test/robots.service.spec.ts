@@ -61,57 +61,44 @@ describe('RobotsService - place()', () => {
   });
 
   it('should rollback and throw BadRequestException when coords are out of bounds', async () => {
-    // negative coordinates
     await expect(service.place(-1, 0)).rejects.toBeInstanceOf(BadRequestException);
     expect(qr.rollbackTransaction).toHaveBeenCalled();
     expect(qr.commitTransaction).not.toHaveBeenCalled();
 
-    // clear mocks before next scenario
     (qr.rollbackTransaction as jest.Mock).mockClear();
     (qr.commitTransaction as jest.Mock).mockClear();
 
-    // coordinates beyond max
     await expect(service.place(6, 3)).rejects.toBeInstanceOf(BadRequestException);
     expect(qr.rollbackTransaction).toHaveBeenCalled();
     expect(qr.commitTransaction).not.toHaveBeenCalled();
   });
 
   it('should allow placement on a larger board when custom maxX/maxY are provided', async () => {
-    // Arrange & Act: place at (9,9) on a 9x9 board
     const result = await service.place(9, 9, 9, 9);
 
-    // Assert transaction started
     expect(qr.connect).toHaveBeenCalled();
     expect(qr.startTransaction).toHaveBeenCalled();
-
-    // Assert save recorded correct dynamic limits
+ // Assert save recorded correct dynamic limits
     expect(fakeManager.save).toHaveBeenCalledWith(
       expect.objectContaining({ x: 9, y: 9, facing: Facing.NORTH, maxX: 9, maxY: 9 }),
     );
-    // Assert history insert
     expect(fakeManager.insert).toHaveBeenCalledWith(
       RobotHistory,
       expect.objectContaining({ x: 9, y: 9, facing: Facing.NORTH }),
     );
-
-    // Assert committed, not rolled back
+ // Assert committed, not rolled back
     expect(qr.commitTransaction).toHaveBeenCalled();
     expect(qr.rollbackTransaction).not.toHaveBeenCalled();
 
-    // Assert return value
     expect(result).toMatchObject({ x: 9, y: 9, facing: Facing.NORTH });
   });
 
   it('should always face NORTH when placed at any coordinates', async () => {
-    // Act: place at arbitrary position
     const result = await service.place(3, 1);
 
-    // Assert the save was called with facing NORTH
     expect(fakeManager.save).toHaveBeenCalledWith(
       expect.objectContaining({ x: 3, y: 1, facing: Facing.NORTH }),
     );
-
-    // And the returned robot always faces NORTH
     expect(result).toBeDefined();
     expect(result!.facing).toBe(Facing.NORTH);
   });
@@ -152,7 +139,6 @@ describe('RobotsService - move()', () => {
   });
 
   it('should rollback and throw BadRequestException when moving off grid at west edge', async () => {
-    // stub findOne to return a robot at the west edge facing West
     (fakeManager.findOne as jest.Mock).mockResolvedValue({
       id: 'test-id',
       x: 0,
@@ -168,7 +154,6 @@ describe('RobotsService - move()', () => {
   });
 
   it('should move robot north and commit transaction when move is valid', async () => {
-    // stub findOne to return a robot at (2,2) facing North
     (fakeManager.findOne as jest.Mock).mockResolvedValue({
       id: 'test-id',
       x: 2,
@@ -178,14 +163,11 @@ describe('RobotsService - move()', () => {
       maxY: 4,
     });
 
-    // Act
     const result = await service.move('test-id');
 
-    // Assert transaction calls
     expect(qr.connect).toHaveBeenCalled();
     expect(qr.startTransaction).toHaveBeenCalled();
 
-    // Assert update and history calls
     expect(fakeManager.update).toHaveBeenCalledWith(
       expect.any(Function),
       { id: 'test-id' },
@@ -196,15 +178,12 @@ describe('RobotsService - move()', () => {
       expect.objectContaining({ robot: { id: 'test-id' }, x: 2, y: 3, facing: Facing.NORTH }),
     );
 
-    // Assert commit
     expect(qr.commitTransaction).toHaveBeenCalled();
     expect(qr.rollbackTransaction).not.toHaveBeenCalled();
 
-    // Assert return value
     expect(result).toMatchObject({ id: 'test-id', x: 2, y: 3, facing: Facing.NORTH });
   });
 
-  // Unit tests for report()
   describe('RobotsService - report()', () => {
     let service: RobotsService;
     let qr: QueryRunner;
@@ -278,19 +257,15 @@ describe('RobotsService - rotate()', () => {
   });
 
   it('should update facing, insert history & commit for a RIGHT rotation', async () => {
-    // Arrange: robot facing NORTH at (1,1)
     (fakeManager.findOne as jest.Mock).mockResolvedValue({
       id: 'r1', x: 1, y: 1, facing: Facing.NORTH, maxX: 4, maxY: 4,
     });
 
-    // Act: rotate RIGHT
     const updated = await service.rotate('r1', RotateDirection.RIGHT);
 
-    // Assert transaction begins
     expect(qr.connect).toHaveBeenCalled();
     expect(qr.startTransaction).toHaveBeenCalled();
 
-    // Assert update & history
     expect(fakeManager.update).toHaveBeenCalledWith(
       Robot,
       { id: 'r1' },
@@ -301,15 +276,12 @@ describe('RobotsService - rotate()', () => {
       { robot: { id: 'r1' }, x: 1, y: 1, facing: Facing.EAST },
     );
 
-    // Assert commit
     expect(qr.commitTransaction).toHaveBeenCalled();
     expect(qr.rollbackTransaction).not.toHaveBeenCalled();
 
-    // Assert return
     expect(updated.facing).toBe(Facing.EAST);
   });
 
-  // parameterized tests for every facing and turn
   const rotationCases: Array<[Facing, RotateDirection, Facing]> = [
     [Facing.NORTH, RotateDirection.LEFT, Facing.WEST],
     [Facing.NORTH, RotateDirection.RIGHT, Facing.EAST],
@@ -322,7 +294,6 @@ describe('RobotsService - rotate()', () => {
   ];
   rotationCases.forEach(([start, turn, expected]) => {
     it(`should rotate ${start} ${turn} to ${expected}`, async () => {
-      // stub findOne for this case
       (fakeManager.findOne as jest.Mock).mockResolvedValue({
         id: 'r2', x: 5, y: 5, facing: start, maxX: 10, maxY: 10,
       });
@@ -339,7 +310,6 @@ describe('RobotsService - rotate()', () => {
       expect(qr.commitTransaction).toHaveBeenCalled();
       expect(qr.rollbackTransaction).not.toHaveBeenCalled();
       expect(updated.facing).toBe(expected);
-      // clear for next iteration
       (fakeManager.update as jest.Mock).mockClear();
       (fakeManager.insert as jest.Mock).mockClear();
       (qr.commitTransaction as jest.Mock).mockClear();
@@ -347,7 +317,6 @@ describe('RobotsService - rotate()', () => {
   });
 });
 
-// End-to-end place->rotate->move sequence test
 describe('RobotsService - place->rotate->move sequence', () => {
   let service: RobotsService;
   let qr: QueryRunner;
@@ -382,24 +351,19 @@ describe('RobotsService - place->rotate->move sequence', () => {
   });
 
   it('should correctly place, rotate right, move forward and record history', async () => {
-    // stub findOne for place (none), rotate (north), move (east)
     (fakeManager.findOne as jest.Mock)
       .mockResolvedValueOnce({ id: 'seq-id', x: 1, y: 1, facing: Facing.NORTH, maxX: 4, maxY: 4 })
       .mockResolvedValueOnce({ id: 'seq-id', x: 1, y: 1, facing: Facing.EAST,  maxX: 4, maxY: 4 });
 
-    // 1) PLACE at (1,1)
     const placed  = await service.place(1, 1);
     expect(placed).toMatchObject({ id: 'seq-id', x: 1, y: 1, facing: Facing.NORTH });
 
-    // 2) ROTATE RIGHT
     const rotated = await service.rotate('seq-id', RotateDirection.RIGHT);
     expect(rotated.facing).toBe(Facing.EAST);
 
-    // 3) MOVE forward
     const moved   = await service.move('seq-id');
     expect(moved).toMatchObject({ id: 'seq-id', x: 2, y: 1, facing: Facing.EAST });
 
-    // Validate history insert calls
     expect(fakeManager.insert).toHaveBeenCalledTimes(3);
     expect(fakeManager.insert).toHaveBeenNthCalledWith(1, RobotHistory,
       expect.objectContaining({ robot: { id: 'seq-id' }, x: 1, y: 1, facing: Facing.NORTH }),
@@ -411,10 +375,8 @@ describe('RobotsService - place->rotate->move sequence', () => {
       expect.objectContaining({ robot: { id: 'seq-id' }, x: 2, y: 1, facing: Facing.EAST  }),
     );
 
-    // Ensure commitTransaction was called for each step
     expect(qr.commitTransaction).toHaveBeenCalledTimes(3);
 
-    // 4) REPORT current state
     (fakeManager.findOne as jest.Mock).mockResolvedValue({ x: 2, y: 1, facing: Facing.EAST });
     const reported = await service.report('seq-id');
     expect(reported).toEqual({ x: 2, y: 1, facing: Facing.EAST });
@@ -422,7 +384,6 @@ describe('RobotsService - place->rotate->move sequence', () => {
   });
 });
 
-// Add unit tests for the getHistory() method
 describe('RobotsService - getHistory()', () => {
   let service: RobotsService;
   let qr: QueryRunner;

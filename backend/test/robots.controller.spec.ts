@@ -52,7 +52,6 @@ describe('RobotsController', () => {
 
     it('should propagate a BadRequestException from the service', async () => {
       (service.place as jest.Mock).mockRejectedValue(new BadRequestException());
-      // Pass a properly typed DTO with invalid values
       const invalidDto: PlaceRobotDto = { x: -1, y: 0 };
       await expect(controller.place(invalidDto)).rejects.toBeInstanceOf(
         BadRequestException,
@@ -89,15 +88,12 @@ describe('RobotsController', () => {
 
   describe('move()', () => {
     it('should call service.move and return its result', async () => {
-      // Arrange: mock service
       const id = 'r1';
       const mockRobot = { id, x: 2, y: 3, facing: 'NORTH' };
       (service.move as jest.Mock).mockResolvedValue(mockRobot);
 
-      // Act: call controller.move with robot_id string
       const result = await controller.move(id);
 
-      // Assert: service.move was invoked with the id and returned result
       expect(service.move).toHaveBeenCalledWith(id);
       expect(result).toBe(mockRobot);
     });

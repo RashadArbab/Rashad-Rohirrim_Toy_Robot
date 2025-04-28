@@ -85,7 +85,7 @@ export class RobotsService {
         }
         break;
     }
-    // fallback (should never happen if enums are exhaustive)
+    // fallback (should never happen)
     return facing;
   }
   async rotate(robot_id: string, direction: RotateDirection) {
@@ -212,7 +212,6 @@ export class RobotsService {
     }
   }
 
-  /** Fetches all history entries ordered by timestamp */
   async getHistory(robot_id: string): Promise<RobotHistory[]> {
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
